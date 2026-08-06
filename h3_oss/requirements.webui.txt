@@ -1,0 +1,5 @@
+av==18.0.0
+fastapi==0.116.1
+psutil==7.0.0
+python-multipart==0.0.20
+uvicorn==0.35.0

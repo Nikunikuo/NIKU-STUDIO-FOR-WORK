@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="MiniMax H3をローカルで使うための動画・音声生成スタジオ" />
+    <title>NIKU H STUDIO — Local Video Generation</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="NIKU H STUDIO ホーム">
+        <span class="brand-mark">H3</span>
+        <span>
+          <strong>NIKU H STUDIO</strong>
+          <small>POWERED BY MINIMAX H3</small>
+        </span>
+      </a>
+      <div class="system-strip" aria-live="polite">
+        <span class="status-dot" id="model-dot"></span>
+        <span id="model-status">モデルを確認中</span>
+        <span class="strip-divider"></span>
+        <span id="gpu-status">GPU —</span>
+        <span class="strip-divider desktop-only"></span>
+        <span class="desktop-only" id="ram-status">RAM —</span>
+      </div>
+      <button class="ghost-button" id="open-folder" type="button">
+        <span aria-hidden="true">↗</span> 生成フォルダ
+      </button>
+    </header>
+
+    <main class="workspace">
+      <section class="composer-panel" aria-label="生成設定">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">CREATE</p>
+            <h1>新しい動画をつくる</h1>
+          </div>
+          <button class="text-button" id="reset-form" type="button">リセット</button>
+        </div>
+
+        <div class="form-section">
+          <div class="section-label"><span>01</span> 生成モード</div>
+          <div class="mode-grid" id="mode-grid" role="radiogroup" aria-label="生成モード">
+            <button class="mode-card selected" type="button" data-mode="t2v" role="radio" aria-checked="true">
+              <span class="mode-icon">✦</span>
+              <strong>Text</strong>
+              <small>文章から生成</small>
+            </button>
+            <button class="mode-card" type="button" data-mode="i2v" role="radio" aria-checked="false">
+              <span class="mode-icon">◫</span>
+              <strong>Image</strong>
+              <small>1枚から動かす</small>
+            </button>
+            <button class="mode-card" type="button" data-mode="first_last" role="radio" aria-checked="false">
+              <span class="mode-icon">⇥</span>
+              <strong>Frames</strong>
+              <small>開始と終了</small>
+            </button>
+            <button class="mode-card" type="button" data-mode="omni" role="radio" aria-checked="false">
+              <span class="mode-icon">◎</span>
+              <strong>Omni</strong>
+              <small>複数素材を参照</small>
+              <span class="mode-lock" id="omni-lock">準備確認中</span>
+            </button>
+          </div>
+          <p class="mode-description" id="mode-description">テキストだけで、映像と同期音声を同時に生成します。</p>
+        </div>
+
+        <div class="form-section attachment-section hidden" id="attachment-section">
+          <div class="section-label"><span>02</span> 参照素材</div>
+
+          <div class="frame-uploads" id="frame-uploads">
+            <label class="upload-card" id="first-upload-card">
+              <input type="file" id="first-image" accept="image/png,image/jpeg,image/webp,image/bmp" />
+              <span class="upload-preview" id="first-preview"><span class="upload-symbol">＋</span></span>
+              <span class="upload-copy">
+                <strong>開始画像</strong>
+                <small>クリックまたはドロップ</small>
+              </span>
+              <button class="remove-upload hidden" id="remove-first" type="button" aria-label="開始画像を削除">×</button>
+            </label>
+            <label class="upload-card optional" id="last-upload-card">
+              <input type="file" id="last-image" accept="image/png,image/jpeg,image/webp,image/bmp" />
+              <span class="upload-preview" id="last-preview"><span class="upload-symbol">＋</span></span>
+              <span class="upload-copy">
+                <strong>終了画像</strong>
+                <small id="last-image-hint">任意</small>
+              </span>
+              <button class="remove-upload hidden" id="remove-last" type="button" aria-label="終了画像を削除">×</button>
+            </label>
+          </div>
+
+          <div class="omni-upload hidden" id="omni-upload">
+            <label class="drop-zone" id="reference-drop-zone">
+              <input
+                type="file"
+                id="reference-files"
+                accept="image/*,video/mp4,video/webm,video/quicktime,audio/*"
+                multiple
+              />
+              <span class="drop-icon">＋</span>
+              <strong>画像・動画・音声を追加</strong>
+              <small>参照順が結果に影響します。最大12素材。</small>
+            </label>
+            <label class="field reference-quality-field">
+              <span>参照画像の解析精度</span>
+              <select id="ref-image-size" aria-describedby="ref-image-size-note">
+                <option value="match" selected>高速 · 出力面積に合わせる</option>
+                <option value="max">高精度 · 元画像を活かす</option>
+              </select>
+              <small id="ref-image-size-note">
+                画像を出力面積に合わせて縮小して解析します。通常はこちらが速く、参照処理の負荷も抑えられます。
+              </small>
+            </label>
+            <div class="reference-list" id="reference-list"></div>
+            <p class="reference-helper">公式タグをクリックするとプロンプトへ挿入します。番号は画像・動画・音声ごとに付き、並べ替えると自動更新されます。参照動画の埋め込み音声は通常経路では使用しません。</p>
+            <label class="field reference-audio-policy hidden" id="reference-audio-policy-field">
+              <span>standalone Audioの使い方</span>
+              <select id="standalone-audio-policy" aria-describedby="standalone-audio-policy-note">
+                <option value="dialogue_priority" selected>指定台詞を優先 · 推奨</option>
+                <option value="full_content">元音声も使う · 実験的</option>
+              </select>
+              <small id="standalone-audio-policy-note">明示台詞がある生成では、添付音声をH3の生成条件から外します。声色は参照されません。</small>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-label"><span id="style-step">02</span> 生成スタイル</div>
+          <div class="style-row" id="style-row" role="radiogroup" aria-label="生成スタイル">
+            <button class="style-chip selected" type="button" data-style="natural">Natural</button>
+            <button class="style-chip" type="button" data-style="cinematic">Cinematic</button>
+            <button class="style-chip" type="button" data-style="photoreal">Photoreal</button>
+            <button class="style-chip" type="button" data-style="anime">Anime</button>
+            <button class="style-chip" type="button" data-style="illustration">Illustration</button>
+            <button class="style-chip" type="button" data-style="product">Product</button>
+            <button class="style-chip" type="button" data-style="moody">Moody</button>
+          </div>
+        </div>
+
+        <div class="form-section prompt-section">
+          <div class="section-label" id="prompt-label"><span id="prompt-step">03</span> プロンプト</div>
+          <div class="prompt-shell">
+            <textarea
+              id="prompt"
+              maxlength="4000"
+              rows="9"
+              aria-labelledby="prompt-label"
+              aria-describedby="prompt-help"
+              placeholder="Cut4&#10;キャラクターはカメラを見て、低くくぐもった声で「はぁ、あっつい。」と一度だけ言う。&#10;穏やかな波の音が続き、グラスを置くと小さくカランと鳴る。BGMなし。"
+            ></textarea>
+            <div class="prompt-footer">
+              <button class="sample-button" id="sample-prompt" type="button">例文を入れる</button>
+              <span><strong id="prompt-count">0</strong> / 4000</span>
+            </div>
+          </div>
+          <div class="prompt-reuse-row">
+            <select id="prompt-history" aria-label="過去のプロンプト">
+              <option value="">過去のプロンプトを選択…</option>
+            </select>
+            <button id="reuse-prompt" type="button" disabled>プロンプトを再利用</button>
+          </div>
+          <p class="helper" id="prompt-help">映像、カメラ、動作、声質、台詞、環境音、効果音をCutごとにまとめて書けます。台詞は「実際に話す言葉」と分かるように鉤括弧で囲み、「と言う」「と話す」まで書いてください。NIKU H STUDIOが発話制御だけを公式形式へ整え、動作や効果音は同じCutに残します。順序を強く効かせたい大きな動作・台詞・音は、同じCut内で改行して分けると安定します。</p>
+        </div>
+
+        <details class="form-section sound-section audio-advanced" id="sound-section">
+          <summary>
+            <span class="sound-wave" aria-hidden="true">⌁</span>
+            <span class="audio-summary-copy"><strong>音声の詳細設定（任意）</strong><small>通常はプロンプトだけでOK · 台詞の固定、全体音響、BGM、出力音量</small></span>
+          </summary>
+          <div class="audio-advanced-body">
+            <div class="sound-fact">
+              <span class="sound-wave" aria-hidden="true">⌁</span>
+              <p><strong>映像と32 kHzステレオ音声を同時生成</strong><small id="sound-status">日本語台詞は原文のまま1回だけ保持し、映像・カメラ・音響の制御文とは分離します。</small></p>
+            </div>
+            <div class="sound-grid">
+              <label class="field">
+                <span>音の主役</span>
+                <select id="sound-preset" disabled>
+                  <option value="auto" selected>自動 · 映像に合わせる</option>
+                  <option value="dialogue">会話・声を優先</option>
+                  <option value="ambience">環境音・空気感を優先</option>
+                  <option value="effects">効果音・フォーリーを優先</option>
+                  <option value="music">音楽を優先</option>
+                  <option value="quiet">静かな音場</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>BGM</span>
+                <select id="music-policy" disabled>
+                  <option value="auto" selected>自動</option>
+                  <option value="none">BGMなし</option>
+                  <option value="subtle">控えめなBGM</option>
+                  <option value="prominent">はっきりしたBGM</option>
+                </select>
+              </label>
+              <label class="field sound-text-field">
+                <span>台詞を固定する（任意・本文より優先） <b><i id="dialogue-count">0</i> / 800</b></span>
+                <textarea id="dialogue" maxlength="800" rows="3" aria-describedby="dialogue-help" placeholder="例：Cut4&#10;（低くくぐもった女性の声）&#10;「はぁ、あっつい。」" disabled></textarea>
+                <small id="dialogue-help">空欄ならメインプロンプト中の台詞を使います。入力した場合だけ、指定したCutの台詞を上書きします。</small>
+              </label>
+              <label class="field sound-text-field">
+                <span>全体の音響補足（任意） <b><i id="soundscape-count">0</i> / 800</b></span>
+                <textarea id="soundscape" maxlength="800" rows="3" placeholder="例：全編を通して遠い波音を小さく保つ。Cutごとの音はメインプロンプトへ書いてください。" disabled></textarea>
+              </label>
+              <label class="field sound-output-field">
+                <span>最終出力音量</span>
+                <select id="audio-gain" disabled>
+                  <option value="-12">かなり小さく · −12 dB</option>
+                  <option value="-6">小さめ · −6 dB</option>
+                  <option value="0" selected>そのまま · 0 dB</option>
+                  <option value="3">少し大きく · +3 dB</option>
+                  <option value="6">大きく · +6 dB</option>
+                </select>
+                <small>MP4書き出し直前に波形へ適用する確定処理です。音の内容には影響しません。</small>
+              </label>
+            </div>
+            <p class="helper">Cut内の台詞・声質・環境音・効果音が正本です。ここは全体傾向の調整や、台詞を明示的に固定したい場合だけ使用します。</p>
+          </div>
+        </details>
+
+        <div class="form-section">
+          <div class="section-label"><span id="settings-step">04</span> かんたん設定</div>
+          <div class="settings-grid">
+            <label class="field generation-quality-field">
+              <span>画質</span>
+              <select id="quality">
+                <option value="8">Draft · 7回</option>
+                <option value="20" selected>Standard · 19回</option>
+                <option value="30">High · 29回</option>
+              </select>
+            </label>
+            <label class="field aspect-ratio-field">
+              <span>縦横比</span>
+              <select id="aspect-ratio">
+                <option value="16:9" selected>横 16:9</option>
+                <option value="9:16">縦 9:16</option>
+                <option value="1:1">正方形 1:1</option>
+                <option value="4:3">横 4:3</option>
+                <option value="3:4">縦 3:4</option>
+              </select>
+            </label>
+            <label class="field resolution-quality-field">
+              <span>解像度</span>
+              <select id="resolution-quality">
+                <option value="preview">Preview · 672×384</option>
+                <option value="sd" selected>SD 480p相当 · 864×480</option>
+                <option value="hd">HD 720p相当 · 1312×736</option>
+                <option value="native">Native 768p · 1344×768</option>
+              </select>
+            </label>
+            <label class="field duration-field">
+              <span>長さ</span>
+              <select id="duration">
+                <option value="124" selected>約5秒</option>
+                <option value="243">約10秒</option>
+                <option value="345">約14秒</option>
+              </select>
+            </label>
+            <label class="field seed-field">
+              <span>Seed</span>
+              <span class="seed-control">
+                <input id="seed" type="number" min="0" max="9223372036854775807" value="42" />
+                <button id="random-seed" type="button" aria-label="Seedをランダムにする">↻</button>
+              </span>
+            </label>
+            <label class="field acceleration-field">
+              <span>高速化</span>
+              <select id="acceleration" aria-describedby="acceleration-note">
+                <option value="off">高速化なし（比較用）</option>
+                <option value="community" selected>おすすめ：控えめ（通常）</option>
+                <option value="conservative">より慎重（品質優先）</option>
+                <option value="balanced">速度優先（品質を確認）</option>
+              </select>
+              <small id="acceleration-note">
+                通常は「おすすめ：控えめ（通常）」を選んでください。品質比較は「高速化なし」、速度優先の試作は「速度優先」。Draft（12 steps未満）では自動的に高速化なしになります。
+              </small>
+              <small id="acceleration-legacy-note" hidden aria-hidden="true">
+                公開例はthreshold 0.20・sampling 15%～95%。EasyCacheは近似処理なので、Draft（steps&lt;12）では自動OFF。映像と音声がわずかに変わる可能性があります。
+              </small>
+            </label>
+            <label class="field prompt-processing-field">
+              <span>プロンプト処理</span>
+              <select id="prompt-processing-mode" aria-describedby="prompt-processing-note">
+                <option value="community" selected>日本語入力 · 公開成功例方式（推奨）</option>
+                <option value="raw_en">英語H3プロンプトをそのまま · 上級</option>
+              </select>
+              <small id="prompt-processing-note">
+                推奨設定は、日本語の意図を短い英語Storyboardへローカル変換し、実際の台詞だけを普通の引用符内へ原文のまま残します。独自IR・&lt;d&gt;・tokenizerパッチは使いません。変換後の全文は生成後の詳細で確認できます。
+              </small>
+            </label>
+          </div>
+          <div class="weight-warning hidden" id="weight-warning">
+            <span>!</span>
+            <div class="weight-warning-copy">
+              <strong id="weight-warning-title">高負荷設定です。</strong>
+              <p id="weight-warning-text">Full attentionで処理するため、他のGPUアプリを閉じてからの実行を推奨します。</p>
+            </div>
+            <button id="quick-preview" type="button">軽量プレビュー設定</button>
+          </div>
+        </div>
+
+        <div class="submit-zone">
+          <button class="generate-button" id="generate" type="button">
+            <span class="generate-orb">✦</span>
+            <span>
+              <strong>動画を生成</strong>
+              <small id="generate-summary">16:9 · SD · 864×480 · 約5秒 · Standard</small>
+            </span>
+            <span class="button-arrow">→</span>
+          </button>
+          <p id="planner-warning" class="planner-warning hidden" role="status"></p>
+          <p id="form-error" class="form-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="stage-panel" aria-label="生成結果">
+        <div class="stage-toolbar">
+          <div>
+            <p class="eyebrow">OUTPUT</p>
+            <h2>生成プレビュー</h2>
+          </div>
+          <span class="queue-badge" id="queue-badge">待機中</span>
+        </div>
+
+        <div class="stage-card" id="stage-card">
+          <div class="empty-stage" id="empty-stage">
+            <div class="empty-visual">
+              <span class="film-frame frame-back"></span>
+              <span class="film-frame frame-front"><span>H3</span></span>
+              <span class="sound-wave"><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+            <h3>ここに生成結果が表示されます</h3>
+            <p>左側で設定して「動画を生成」を押してください。映像と同期音声を一度に作成します。</p>
+          </div>
+
+          <div class="progress-stage hidden" id="progress-stage" aria-live="polite">
+            <div class="progress-ring" id="progress-ring" style="--progress: 0deg">
+              <div class="progress-core">
+                <strong id="progress-number">0%</strong>
+                <small id="progress-caption">PROGRESS</small>
+              </div>
+            </div>
+            <div class="progress-copy">
+              <span class="working-pill"><i></i> LOCAL PROCESSING</span>
+              <h3 id="progress-phase">準備しています</h3>
+              <p id="progress-message">生成エンジンを開始しています。</p>
+              <div class="progress-meta">
+                <span id="progress-elapsed">経過 00:00</span>
+                <span id="progress-step">—</span>
+              </div>
+              <button class="cancel-button" id="cancel-job" type="button">生成をキャンセル</button>
+            </div>
+          </div>
+
+          <div class="result-stage hidden" id="result-stage">
+            <video id="result-video" controls playsinline preload="metadata"></video>
+            <div class="result-overlay">
+              <div>
+                <span class="completed-pill">✓ 完成</span>
+                <h3 id="result-title">MiniMax H3 Generated Video</h3>
+                <p id="result-meta"></p>
+              </div>
+              <div class="result-actions">
+                <a class="action-button primary" id="download-result" href="#" download>保存</a>
+                <button class="action-button" id="reuse-job" type="button">設定＋プロンプトを再利用</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="error-stage hidden" id="error-stage">
+            <span class="error-mark">!</span>
+            <h3 id="error-title">生成を完了できませんでした</h3>
+            <p id="error-message"></p>
+            <div class="error-actions">
+              <button class="action-button" id="reuse-error-prompt" type="button">プロンプトを再利用</button>
+              <button class="action-button" id="show-log" type="button">詳細ログを見る</button>
+            </div>
+            <pre class="log-view hidden" id="log-view"></pre>
+          </div>
+        </div>
+
+        <section class="job-details hidden" id="job-details" aria-label="生成の詳細">
+          <details id="job-details-disclosure">
+            <summary>
+              <span>生成の詳細を見る</span>
+              <small id="job-details-caption">実際に使われた設定を確認できます</small>
+            </summary>
+            <div class="job-details-grid">
+              <details class="job-detail-group job-detail-original hidden" id="detail-original-group">
+                <summary>
+                  <span>入力した原文</span>
+                  <small>変換前のプロンプト</small>
+                </summary>
+                <pre class="job-detail-content" id="detail-original"></pre>
+              </details>
+
+              <details class="job-detail-group job-detail-effective hidden" id="detail-effective-group">
+                <summary>
+                  <span>実効プロンプト</span>
+                  <small>モデルへ渡した最終プロンプト</small>
+                </summary>
+                <pre class="job-detail-content" id="detail-effective"></pre>
+              </details>
+
+              <details class="job-detail-group hidden" id="detail-adjustments-group">
+                <summary>
+                  <span>自動調整</span>
+                  <small>NIKU H STUDIOが生成前に整えた内容</small>
+                </summary>
+                <pre class="job-detail-content" id="detail-adjustments"></pre>
+              </details>
+
+              <details class="job-detail-group hidden" id="detail-reference-group">
+                <summary>
+                  <span>参考情報</span>
+                  <small>参照素材と入力ガードの補足</small>
+                </summary>
+                <pre class="job-detail-content" id="detail-reference"></pre>
+              </details>
+
+              <details class="job-detail-group hidden" id="detail-technical-group">
+                <summary>
+                  <span>技術情報</span>
+                  <small>実行環境・処理時間・出力検証</small>
+                </summary>
+                <pre class="job-detail-content" id="detail-technical"></pre>
+              </details>
+            </div>
+          </details>
+        </section>
+
+        <div class="history-section">
+          <div class="history-heading">
+            <div>
+              <p class="eyebrow">HISTORY</p>
+              <h2>最近の生成</h2>
+            </div>
+            <button class="text-button" id="refresh-history" type="button">更新</button>
+          </div>
+          <div class="history-grid" id="history-grid">
+            <div class="history-empty">生成履歴はまだありません。</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

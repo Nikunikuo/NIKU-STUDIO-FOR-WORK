@@ -1,0 +1,4 @@
+interface:
+  display_name: "Operate H3 Story Studio"
+  short_description: "Create or resume project-bound stories with Codex and local H3"
+  default_prompt: "Use $operate-h3-story-studio to create or activate the exact story project, inspect its focus and revision, and continue through assets, prompts, and real H3 takes safely."

@@ -1,0 +1,34 @@
+# NIKU H STUDIO local runtime
+h3_oss/.venv/
+h3_oss/.comfy-venv/
+h3_oss/.cache/
+h3_oss/.upstream/
+h3_oss/models/
+h3_oss/outputs/
+h3_oss/webui_data/
+h3_oss/artifacts/
+h3_oss/*.safetensors
+h3_oss/*.ckpt
+h3_oss/*.pt
+h3_oss/*.pth
+
+# Drama Studio local runtime
+drama-studio/node_modules/
+drama-studio/.vinext/
+drama-studio/.wrangler/
+drama-studio/.next/
+drama-studio/dist/
+drama-studio/build/*
+!drama-studio/build/sites-vite-plugin.ts
+drama-studio/projects/
+drama-studio/work/
+drama-studio/.h3_story_core/
+drama-studio/coverage/
+drama-studio/.env*
+drama-studio/tsconfig.tsbuildinfo
+
+# Shared generated files
+**/__pycache__/
+**/*.py[cod]
+.DS_Store
+*.log

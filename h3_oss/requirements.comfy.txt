@@ -1,0 +1,41 @@
+# ComfyUI runtime dependencies verified on Windows 11 / Python 3.12.
+# torch, torchvision and torchaudio are installed separately from the CUDA
+# 13.0 PyTorch index by scripts/setup_comfy.ps1. torchao is pinned below for
+# the Comfy-Org int8 checkpoints.
+# ComfyUI itself is a fixed source checkout, not a PyPI package.
+
+accelerate==1.14.0
+aiohttp==3.14.3
+alembic==1.18.5
+av==18.0.0
+blake3==1.0.9
+comfy-aimdo==0.4.11
+comfy-angle==0.1.0
+comfy-kitchen==0.2.26
+comfyui-embedded-docs==0.5.9
+comfyui-frontend-package==1.47.12
+comfyui-workflow-templates==0.11.27
+einops==0.8.2
+filelock==3.29.0
+huggingface-hub==1.26.0
+kornia==0.8.3
+numpy==2.5.1
+pillow==12.3.0
+psutil==7.0.0
+pydantic==2.13.4
+pydantic-settings==2.14.2
+PyOpenGL==3.1.10
+PyYAML==6.0.3
+requests==2.34.2
+safetensors==0.8.0
+scipy==1.18.0
+sentencepiece==0.2.2
+simpleeval==1.0.7
+spandrel==0.4.2
+SQLAlchemy==2.0.51
+tokenizers==0.22.2
+torchao==0.17.0
+torchsde==0.2.6
+tqdm==4.70.0
+transformers==5.14.1
+yarl==1.24.5
